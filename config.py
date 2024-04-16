@@ -1,0 +1,6 @@
+import time
+
+SYMBOL ="BTCUSD"
+INTERVAL = 15
+TIME_END = time.time()
+TIME_START = TIME_END - (5*24*60*60)
