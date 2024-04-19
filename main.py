@@ -42,6 +42,7 @@ df = pd.DataFrame.from_dict(data_dict)
 indicators.create_rma_indicator(df)
 indicators.create_macd_indicator(df)
 indicators.create_bbands_indicator(df)
+indicators.create_rsi_indicator(df)
 
 
 
@@ -70,42 +71,36 @@ def signal_generator(data_range):
     macds_1 = data_range["MACDs_12_26_9"].iloc[-2] # last one
     macds_0 = data_range["MACDs_12_26_9"].iloc[-1] # present
 
-    if(rma33L_0>=rma144L_0 and rma33H_0 >= rma144H_0
-       and (rma33H_1<rma144H_1 or rma33L_2<rma144L_2)): #
-        if(macd_0>macds_0):
+    rsi_0 = data_range["rsi"].iloc[-1]
+
+    current_close = data_range["close"].iloc[-1]
+
+    #up trend
+    # if(rma33L_0>=rma144L_0 and rma33H_0 >= rma144H_0
+    #    and (rma33H_1<rma144H_1 or rma33L_2<rma144L_2)): #
+    #     if(macd_0>macds_0):
+    #         return 1
+    
+    if(rma33L_0>=rma144L_0 and rma33H_0 >= rma144L_0):
+        if(macd_0 >= macds_0 and (macd_1 <= macds_1 or macd_2 <= macds_2) and rsi_0 <= 55):
             return 1
+    #down trend
+    if(rma33L_0<=rma144L_0 and rma33H_0 <= rma144H_0 and rma33H_0 < rma144L_0 and current_close <= rma144L_0):
+        if(macd_0 <= macds_0 and (macd_1 >= macds_1 or macd_2 >= macds_2) and rsi_0>=50):
+            return 2
     else:
         return 0
-    #    and (rma33H_1<rma144H_1 or rma33L_2<rma144L_2)):
-        # if(macd_0>macds_0):
-            # print("buy")
 
-    # rma33H = data_range.rma33_high
-    # rma144_low = data_range.rma144_low
-    # rma144_high = data_range.rma144_high
-    # macd = data_range['MACD_12_26_9']
-    # macdh = data_range['MACDh_12_26_9']
-    # macds = data_range['MACDs_12_26_9']
-    # bbl= data_range["BBL_14_2.0"]
-    # bbu =data_range["BBU_14_2.0"]
-    # trend = None
-    # if(rma33_low>rma144_low and rma33_high>rma144_high):
-    #     print('up trend')
-    #     trend = 1
-    #     if(macd == macds):
-    #         print("buy")
-    
-    # if(rma33_low<rma144_low and rma33_high<rma144_high):
-    #     if(macd == macds):
-    #         print("sell")
-    #     print('down trend')
-    #     trend = 0
-
-    # if(trend == 1):
-    #     print("aa")
 signal = []
 signal.append(0)
 signal.append(0)
+buy_signal = []
+buy_signal.append(0)
+buy_signal.append(0)
+
+sell_signal = []
+sell_signal.append(0)
+sell_signal.append(0)
 
 for i in range(2, 1000):
     data_range = df[i-2:i+1]
@@ -116,20 +111,24 @@ df["signal"] = signal
 def pointbreak(x):
     if(x.signal==1):
         return x.close
+    if(x.signal==2):
+        return x.close
     else:
         return np.nan
 
 for index, row in df.iterrows():
     df['pointbreak'] = df.apply(lambda row: pointbreak(row), axis=1)
 
+print(signal)
 
 print(df)
+
 figure.draw_figure(df)
 
 #types of signals
 # 0 - down trend
 # 1 - up trend
-#FIXME fix signal generating points
+#FIXME fix xaxis
 #TODO finish signal generator
 #TODO add possibility to test strategy on past candles
 #TODO add opening positions and closing them

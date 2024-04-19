@@ -17,3 +17,7 @@ def create_bbands_indicator(df):
     my_bbands = ta.bbands(df["close"], length=14)
     df["BBL_14_2.0"] = my_bbands["BBL_14_2.0"] 
     df["BBU_14_2.0"] = my_bbands["BBU_14_2.0"]
+
+def create_rsi_indicator(df):
+    my_rsi = ta.rsi(df["close"], length=14)
+    df["rsi"] = my_rsi
