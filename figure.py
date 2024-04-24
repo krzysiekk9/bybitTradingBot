@@ -34,9 +34,9 @@ def draw_figure(df):
                             line=dict(color='#ff5252',width=1),
                             name='RMA144H'))  
 
-    fig.add_trace(go.Scatter(x=df.index, y=df.pointbreak,
+    fig.add_trace(go.Scatter(x=df.index, y=df.position,
                             mode="markers", 
-                            marker=dict(size=15, color="#7b30d1", symbol='triangle-up'),
+                            marker=dict(size=12, color="#7b30d1", symbol='diamond'),
                             name="Signal"),
                             row=1, col=1)              
 
