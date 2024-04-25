@@ -1,6 +1,6 @@
 import time
 
-SYMBOL ="BTCUSDC"
+SYMBOL ="BTCUSDT"
 INTERVAL = 5
 TIME_END = int(time.time())*1000
 TIME_START = int(TIME_END - (1000*INTERVAL*60*1000))

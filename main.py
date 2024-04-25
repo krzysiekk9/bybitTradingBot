@@ -5,6 +5,9 @@ import numpy as np
 
 from threading import Timer
 import time
+import json
+import string
+import random
 
 import config
 import figure
@@ -22,7 +25,7 @@ account_wallet = wallet.create_wallet(session)
 print(account_wallet)
 
 response = session.get_kline(
-    category="spot",
+    category="inverse",
     symbol=config.SYMBOL,
     interval=config.INTERVAL,
     start=config.TIME_START,
@@ -122,51 +125,115 @@ def signal_point_break(x):
     if(x.signal==0):
         return np.nan
 
-for index, row in df.iterrows():
-        df['position'] = df.apply(lambda row: signal_point_break(row), axis=1)
+# for index, row in df.iterrows():
+#         df['position'] = df.apply(lambda row: signal_point_break(row), axis=1)
 
-figure.draw_figure(df)
+# figure.draw_figure(df)
 
 # print(df)
 
-def check_trade_signal(signal):
-    if(signal==1):
-        print('returning one')
-        session.place_order(
-            category="spot",
-            symbol="BTCUSDC",
-            side="Buy",
-            orderType="Market",
-            qty="0.005",
-            timeInForce="PostOnly",
-            orderLinkId="spot-test-postonly",
-            isLeverage=0,
-            orderFilter="Order",
-        )
+def check_for_currently_open_position():
+    response = session.get_positions(
+    category="inverse",
+    symbol="BTCUSDT"
+    )
+
+    s1 = json.dumps(response['result']['list'][0])
+    details = json.loads(s1)
+
+    return details['symbol'], details['side'], details['size']
+
+
+def set_SL_and_TP(side, rma144H, rma144L, open_price):
+    if(side == "long"):
+        if(open_price < rma144H):
+            stop_loss = open_price - 200
+            take_profit = (open_price - stop_loss) * 2 + open_price
+            return stop_loss, take_profit
+        if(open_price >= rma144H):
+            stop_loss = rma144H - 30
+            take_profit = (open_price - stop_loss) * 2 + open_price
+            return stop_loss, take_profit
+    if(side == "short"):
+        if(open_price > rma144L):
+            stop_loss = open_price + 200
+            take_profit = open_price - ((stop_loss - open_price) * 2)
+            return stop_loss, take_profit
+        if(open_price <= rma144L):
+            stop_loss = round(rma144L + 30, 1)
+            take_profit = round((open_price - ((stop_loss - open_price) * 2)), 1)
+            return stop_loss, take_profit
         
-    elif(df.signal.iloc[-1]==2):
-        print(df.signal.iloc[-1])
-        print('returning two')
-        session.place_order(
-            category="spot",
-            symbol="BTCUSDC",
-            side="Sell",
-            orderType="Market",
-            qty="0.005",
-            timeInForce="PostOnly",
-            orderLinkId="spot-test-postonly",
-            isLeverage=0,
-            orderFilter="Order",
-        )
-    else:
-        print('nothing')
-        # pass
+def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
+    return ''.join(random.choice(chars) for _ in range(size))
+
+
+def check_to_open_new_position(row):
+    signal = row.signal
+    rma144H = row.rma144_high
+    rma144L = row.rma144_low
+    open_price = row.close
+
+    symbol, side, size = check_for_currently_open_position()
+
+    if(float(size) == 0): #no open position and can open a new one
+        if(signal==1): #open long position
+            print('Opening logn position')
+            stop_loss, take_profit = set_SL_and_TP("long", rma144H, rma144L, open_price)
+            session.place_order(
+                category="inverse",
+                symbol="BTCUSD",
+                side="Buy",
+                orderType="Limit",
+                qty="100",
+                price=str(round(open_price, 1)),
+                takeProfit=str(take_profit),
+                stopLoss=str(stop_loss),
+                timeInForce="PostOnly",
+                orderLinkId=f"spot-test-postonly-id-{id_generator()}",
+                isLeverage=0,
+                orderFilter="Order",
+            )
+        if(signal==2): #open short position
+            print('Opening short position')
+            stop_loss, take_profit = set_SL_and_TP("short", rma144H, rma144L, open_price)
+            session.place_order(
+                category="inverse",
+                symbol="BTCUSD",
+                side="Sell",
+                orderType="Limit",
+                qty="100",
+                price=str(round(open_price, 1)),
+                takeProfit=str(take_profit),
+                stopLoss=str(stop_loss),
+                timeInForce="PostOnly",
+                orderLinkId=f"spot-test-postonly-id-{id_generator()}",
+                isLeverage=0,
+                orderFilter="Order",
+            )
+        else:
+            print('Opening short position')
+            stop_loss, take_profit = set_SL_and_TP("short", rma144H, rma144L, open_price)
+            session.place_order(
+                category="inverse",
+                symbol="BTCUSD",
+                side="Sell",
+                orderType="Limit",
+                qty="5",
+                price=str(round(open_price, 1)),
+                takeProfit=str(take_profit),
+                stopLoss=str(stop_loss),
+                timeInForce="PostOnly",
+                orderLinkId=f"spot-test-postonly-id-{id_generator()}",
+                isLeverage=0,
+                orderFilter="Order",
+            )
+
 
 def update_data(): #update data every minute
-    # response = client.ui_klines("BTCUSDT", f"{config.INTERVAL}m", limit=1)
 
-    response = session.get_kline(
-        category="spot",
+    response = session.get_kline( # after specified interval get newest candle data
+        category="inverse",
         symbol=config.SYMBOL,
         interval=config.INTERVAL,
         start=config.TIME_UPDATE,
@@ -175,7 +242,6 @@ def update_data(): #update data every minute
     )
 
     updated_data = response['result']['list'][0]
-    print(updated_data)
 
     new_dict = {
     "date" : datetime.fromtimestamp(int(updated_data[0])/1000),
@@ -198,28 +264,16 @@ def update_data(): #update data every minute
 
     #check for break point
     df.loc[len(df.index) - 1,'position'] = signal_point_break(df.iloc[-1])
-    print(df)
-    #TODO add checking if in position and if not and signal right buy
-    check_trade_signal()
-    #TODO add conditions to close position
 
-t = Timer(1.0, update_data)
+    print(df)
+    print('dupa dupa')
+    
+    check_to_open_new_position(df.iloc[-1])
+    return df
+
+
+
+t = Timer(5.0, update_data)
 t.start()
 
 
-
-
-
-# def
-
-# client.order(**params)
-
-
-
-
-
-
-#TODO add opening and closing position with SL position
-#TODO add condition of closing position TP and SL
-#TODO add possibility to test strategy on past candles stop loss
-#TODO add opening positions and closing them
