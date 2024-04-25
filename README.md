@@ -2,15 +2,15 @@
 
 This app is made using only python. 
 
-For ploting chart I used plotly library, for managing data I used pandas, for indicators I used pandas_ta libarary.
+For plotting chart I used plotly library, for managing data I used pandas, for indicators I used pandas_ta libarary.
 
 ---
 
-## How does it wokr?
+## How does it work?
 
 The app connect to the crypo exchange Bybit and gets user wallet (assets) information as well as chart data based on specified interval (I used 5 minutes interval).
 
-After reciving, data is cleand and prepared (putted into pandas dataframe), afer that the indicators are calculated. When it's compleated each row is checked for position entry signal. If the given criteria are fulfilled appropriate flag is issued:
+After reciving, data is cleaned and prepared (putted into pandas dataframe), afer that the indicators are calculated. When it's compleated each row is checked for position entry signal. If the given criteria are fulfilled appropriate flag is issued:
 
 1 - up trend,
 
