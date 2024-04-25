@@ -3,7 +3,6 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 
-from threading import Timer
 import time
 import json
 import string
@@ -52,16 +51,12 @@ def from_data_to_dictionary(data_dict, data):
 
 from_data_to_dictionary(data_dict, response['result']['list'])
 
-
 df = pd.DataFrame.from_dict(data_dict)
-# print(df)
 
 indicators.create_rma_indicator(df)
 indicators.create_macd_indicator(df)
 indicators.create_bbands_indicator(df)
 indicators.create_rsi_indicator(df)
-
-
 
 def signal_generator(data_range):
     
@@ -125,10 +120,10 @@ def signal_point_break(x):
     if(x.signal==0):
         return np.nan
 
-# for index, row in df.iterrows():
-#         df['position'] = df.apply(lambda row: signal_point_break(row), axis=1)
+for index, row in df.iterrows():
+        df['position'] = df.apply(lambda row: signal_point_break(row), axis=1)
 
-# figure.draw_figure(df)
+figure.draw_figure(df)
 
 # print(df)
 
@@ -212,23 +207,7 @@ def check_to_open_new_position(row):
                 orderFilter="Order",
             )
         else:
-            print('Opening short position')
-            stop_loss, take_profit = set_SL_and_TP("short", rma144H, rma144L, open_price)
-            session.place_order(
-                category="inverse",
-                symbol="BTCUSD",
-                side="Sell",
-                orderType="Limit",
-                qty="5",
-                price=str(round(open_price, 1)),
-                takeProfit=str(take_profit),
-                stopLoss=str(stop_loss),
-                timeInForce="PostOnly",
-                orderLinkId=f"spot-test-postonly-id-{id_generator()}",
-                isLeverage=0,
-                orderFilter="Order",
-            )
-
+            print("NoT opening any position")
 
 def update_data(): #update data every minute
 
@@ -236,8 +215,8 @@ def update_data(): #update data every minute
         category="inverse",
         symbol=config.SYMBOL,
         interval=config.INTERVAL,
-        start=config.TIME_UPDATE,
-        end=config.TIME_END,
+        start=int((time.time()*1000) - (1000*config.INTERVAL*60)),
+        end=int(time.time())*1000,
         limit=1
     )
 
@@ -266,14 +245,13 @@ def update_data(): #update data every minute
     df.loc[len(df.index) - 1,'position'] = signal_point_break(df.iloc[-1])
 
     print(df)
-    print('dupa dupa')
     
     check_to_open_new_position(df.iloc[-1])
+    figure.draw_figure(df) #draw new figure with updated data
     return df
 
 
-
-t = Timer(5.0, update_data)
-t.start()
-
-
+while True:
+    time.sleep(300) #sleep for 5 minutes == interval
+    update_data()
+    
